@@ -132,6 +132,33 @@ impl MenuItem for Button {
 
 // endregion
 
+// region: Text
+
+pub struct Text {
+    f: Box<dyn Fn() -> String + Send>,
+}
+
+impl Text {
+    pub fn new<F>(f: F) -> Node
+    where
+        F: 'static + Fn() -> String + Send,
+    {
+        Rc::new(RefCell::new(Box::new(Self { f: Box::new(f) })))
+    }
+}
+
+impl MenuItem for Text {
+    fn render(&self) -> String {
+        format!("{}", (self.f)())
+    }
+
+    fn control(&mut self, _input: GamepadState, _stack: &mut Vec<Node>) -> bool {
+        true
+    }
+}
+
+// endregion
+
 // region: Number
 
 pub struct Number<T: Display + core::ops::AddAssign + core::ops::SubAssign + PartialOrd + Clone> {
