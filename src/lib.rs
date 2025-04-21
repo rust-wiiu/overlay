@@ -9,7 +9,7 @@ use wut::{
     prelude::*,
 };
 
-type Node = Rc<RefCell<Box<dyn MenuItem>>>;
+pub type Node = Rc<RefCell<Box<dyn MenuItem>>>;
 
 pub trait MenuItem {
     fn render(&self) -> String;
@@ -207,16 +207,26 @@ impl<T: Display + core::ops::AddAssign + core::ops::SubAssign + PartialOrd + Clo
         use wut::gamepad::Button as B;
         let mut changed = false;
         if input.trigger.contains(B::Up) {
-            if self.value < self.max {
-                self.value += self.inc.clone();
-            };
+            let mut new = self.value.clone();
+            new += self.inc.clone();
+
+            if new <= self.max {
+                self.value = new;
+            } else {
+                self.value = self.max.clone();
+            }
             changed = true;
         }
 
         if input.trigger.contains(B::Down) {
-            if self.value > self.min {
-                self.value -= self.inc.clone();
-            };
+            let mut new = self.value.clone();
+            new -= self.inc.clone();
+
+            if new >= self.min && new < self.value {
+                self.value = new;
+            } else {
+                self.value = self.min.clone();
+            }
             changed = true;
         }
 
@@ -255,14 +265,14 @@ impl Into<Selection<String>> for &str {
     }
 }
 
-pub struct Select<T: Display> {
+pub struct Select<T> {
     text: String,
     options: Vec<Selection<T>>,
     index: usize,
     f: Box<dyn Fn(usize, &Selection<T>) + Send>,
 }
 
-impl<T: 'static + Display> Select<T> {
+impl<T: 'static> Select<T> {
     pub fn new<F>(text: &str, options: Vec<impl Into<Selection<T>>>, f: F) -> Node
     where
         F: 'static + Fn(usize, &Selection<T>) + Send,
@@ -276,7 +286,7 @@ impl<T: 'static + Display> Select<T> {
     }
 }
 
-impl<T: Display> MenuItem for Select<T> {
+impl<T> MenuItem for Select<T> {
     fn render(&self) -> String {
         let icon = if self.index == 0 {
             icons::ARROW_UP
