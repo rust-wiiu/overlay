@@ -5,7 +5,7 @@ use notifications;
 use wut::{
     alloc::{boxed::Box, rc::Rc},
     font::icons,
-    gamepad::GamepadState,
+    gamepad::State,
     prelude::*,
 };
 
@@ -14,7 +14,7 @@ pub type Node = Rc<RefCell<Box<dyn MenuItem>>>;
 pub trait MenuItem {
     fn render(&self) -> String;
 
-    fn control(&mut self, input: GamepadState, stack: &mut Vec<Node>) -> bool;
+    fn control(&mut self, input: State, stack: &mut Vec<Node>) -> bool;
 
     fn focus(&mut self) {}
 
@@ -65,7 +65,7 @@ impl MenuItem for Menu {
         }
     }
 
-    fn control(&mut self, input: GamepadState, stack: &mut Vec<Node>) -> bool {
+    fn control(&mut self, input: State, stack: &mut Vec<Node>) -> bool {
         use wut::gamepad::Button as B;
         let mut changed = false;
 
@@ -121,7 +121,7 @@ impl MenuItem for Button {
         format!("<{}>", self.text)
     }
 
-    fn control(&mut self, input: GamepadState, _stack: &mut Vec<Node>) -> bool {
+    fn control(&mut self, input: State, _stack: &mut Vec<Node>) -> bool {
         use wut::gamepad::Button as B;
         if input.trigger.contains(B::A) {
             (self.f)();
@@ -152,7 +152,7 @@ impl MenuItem for Text {
         format!("{}", (self.f)())
     }
 
-    fn control(&mut self, _input: GamepadState, _stack: &mut Vec<Node>) -> bool {
+    fn control(&mut self, _input: State, _stack: &mut Vec<Node>) -> bool {
         true
     }
 }
@@ -203,7 +203,7 @@ impl<T: Display + core::ops::AddAssign + core::ops::SubAssign + PartialOrd + Clo
         format!("{}: {} {}", self.text, self.value, icon)
     }
 
-    fn control(&mut self, input: GamepadState, _stack: &mut Vec<Node>) -> bool {
+    fn control(&mut self, input: State, _stack: &mut Vec<Node>) -> bool {
         use wut::gamepad::Button as B;
         let mut changed = false;
         if input.trigger.contains(B::Up) {
@@ -299,7 +299,7 @@ impl<T> MenuItem for Select<T> {
         format!("{}: {} {}", self.text, self.options[self.index].name, icon)
     }
 
-    fn control(&mut self, input: GamepadState, _stack: &mut Vec<Node>) -> bool {
+    fn control(&mut self, input: State, _stack: &mut Vec<Node>) -> bool {
         use wut::gamepad::Button as B;
         let mut changed = false;
         if input.trigger.contains(B::Up) {
@@ -352,7 +352,7 @@ impl MenuItem for Toggle {
         format!("{} [{}]", self.text, if self.value { "X" } else { "  " })
     }
 
-    fn control(&mut self, input: GamepadState, _stack: &mut Vec<Node>) -> bool {
+    fn control(&mut self, input: State, _stack: &mut Vec<Node>) -> bool {
         use wut::gamepad::Button as B;
         let mut changed = false;
 
@@ -397,7 +397,7 @@ impl OverlayNotification {
         }
     }
 
-    pub fn run(&mut self, input: GamepadState) {
+    pub fn run(&mut self, input: State) {
         use wut::gamepad::Button as B;
         if input.hold.contains(B::L | B::R) {
             if self.hud.is_none() {
