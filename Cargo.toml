@@ -1,18 +1,17 @@
 [package]
 name = "overlay"
+description = "Overlay system for notifications"
 version = "0.1.0"
 edition = "2021"
 authors = ["29th-Day"]
+license-file = "LICENSE"
+repository = "https://github.com/rust-wiiu/overlay"
+publish = false
 
 [lib]
 name = "overlay"
 crate-type = ["lib"]
 
-# [profile]
-# dev.panic = "abort"
-# release.panic = "abort"
-
-
 [dependencies]
-wut = { path = "../wut", version = "*" }
-notifications = { path = "../notifications", version = "*" }
+wut = { path = "../wut", version = "0.2.0" }
+notifications = { path = "../notifications", version = "0.2.0" }
