@@ -13,5 +13,5 @@ name = "overlay"
 crate-type = ["lib"]
 
 [dependencies]
-wut = { path = "../wut", version = "0.2.0" }
-notifications = { path = "../notifications", version = "0.2.0" }
+wut = { git = "https://github.com/rust-wiiu/wut" }
+notifications = { git = "https://github.com/rust-wiiu/notifications" }
