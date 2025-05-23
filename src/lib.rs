@@ -4,6 +4,7 @@ use core::{cell::RefCell, fmt::Display};
 use notifications;
 use wut::{
     alloc::{boxed::Box, rc::Rc},
+    flagset::FlagSet,
     font::icons,
     gamepad::State,
     prelude::*,
@@ -101,13 +102,13 @@ impl MenuItem for Menu {
 
 pub struct Button {
     text: String,
-    f: Box<dyn Fn() + Send>,
+    f: Box<dyn Fn()>,
 }
 
 impl Button {
     pub fn new<F>(text: &str, f: F) -> Node
     where
-        F: 'static + Fn() + Send,
+        F: 'static + Fn(),
     {
         Rc::new(RefCell::new(Box::new(Self {
             text: String::from(text),
@@ -135,13 +136,13 @@ impl MenuItem for Button {
 // region: Text
 
 pub struct Text {
-    f: Box<dyn Fn() -> String + Send>,
+    f: Box<dyn Fn() -> String>,
 }
 
 impl Text {
     pub fn new<F>(f: F) -> Node
     where
-        F: 'static + Fn() -> String + Send,
+        F: 'static + Fn() -> String,
     {
         Rc::new(RefCell::new(Box::new(Self { f: Box::new(f) })))
     }
@@ -167,7 +168,7 @@ pub struct Number<T: Display + core::ops::AddAssign + core::ops::SubAssign + Par
     inc: T,
     min: T,
     max: T,
-    f: Box<dyn Fn(&T) + Send>,
+    f: Box<dyn Fn(&T)>,
 }
 
 impl<T: 'static + Display + core::ops::AddAssign + core::ops::SubAssign + PartialOrd + Clone>
@@ -175,7 +176,7 @@ impl<T: 'static + Display + core::ops::AddAssign + core::ops::SubAssign + Partia
 {
     pub fn new<F>(text: &str, value: T, inc: T, min: T, max: T, f: F) -> Node
     where
-        F: 'static + Fn(&T) + Send,
+        F: 'static + Fn(&T),
     {
         Rc::new(RefCell::new(Box::new(Self {
             text: String::from(text),
@@ -247,20 +248,29 @@ pub struct Selection<T> {
     pub value: T,
 }
 
-impl<T> Into<Selection<T>> for (&str, T) {
-    fn into(self) -> Selection<T> {
-        Selection {
-            name: String::from(self.0),
-            value: self.1,
+impl<T> From<(&str, T)> for Selection<T> {
+    fn from(value: (&str, T)) -> Self {
+        Self {
+            name: String::from(value.0),
+            value: value.1,
         }
     }
 }
 
-impl Into<Selection<String>> for &str {
-    fn into(self) -> Selection<String> {
-        Selection {
-            name: String::from(self),
-            value: String::from(self),
+impl From<&str> for Selection<String> {
+    fn from(value: &str) -> Self {
+        Self {
+            name: String::from(value),
+            value: String::from(value),
+        }
+    }
+}
+
+impl<T: Display> From<T> for Selection<T> {
+    fn from(value: T) -> Self {
+        Self {
+            name: format!("{}", value),
+            value,
         }
     }
 }
@@ -269,13 +279,13 @@ pub struct Select<T> {
     text: String,
     options: Vec<Selection<T>>,
     index: usize,
-    f: Box<dyn Fn(usize, &Selection<T>) + Send>,
+    f: Box<dyn Fn(usize, &Selection<T>)>,
 }
 
 impl<T: 'static> Select<T> {
     pub fn new<F>(text: &str, options: Vec<impl Into<Selection<T>>>, f: F) -> Node
     where
-        F: 'static + Fn(usize, &Selection<T>) + Send,
+        F: 'static + Fn(usize, &Selection<T>),
     {
         Rc::new(RefCell::new(Box::new(Self {
             text: String::from(text),
@@ -331,13 +341,13 @@ impl<T> MenuItem for Select<T> {
 pub struct Toggle {
     text: String,
     value: bool,
-    f: Box<dyn Fn(bool) + Send>,
+    f: Box<dyn Fn(bool)>,
 }
 
 impl Toggle {
     pub fn new<F>(text: &str, value: bool, f: F) -> Node
     where
-        F: 'static + Fn(bool) + Send,
+        F: 'static + Fn(bool),
     {
         Rc::new(RefCell::new(Box::new(Self {
             text: String::from(text),
@@ -370,13 +380,13 @@ impl MenuItem for Toggle {
 
 // region: Root
 
-pub struct OverlayNotification {
+pub struct Overlay {
     hud: Option<notifications::Notification>,
     root: Node,
     stack: Vec<Node>,
 }
 
-impl OverlayNotification {
+impl Overlay {
     pub fn new(root: Node) -> Self {
         let mut r = Self {
             hud: None,
@@ -390,35 +400,46 @@ impl OverlayNotification {
         r
     }
 
-    fn render(&self) {
+    pub fn control(&mut self, input: State) -> bool {
+        self.stack
+            .last()
+            .unwrap()
+            .clone()
+            .borrow_mut()
+            .control(input, &mut self.stack)
+    }
+
+    pub fn render(&self) {
         if let Some(hud) = &self.hud {
             let head = self.stack.last().unwrap().clone();
             let _ = hud.text(&head.borrow().render());
         }
     }
 
-    pub fn run(&mut self, input: State) {
-        use wut::gamepad::Button as B;
-        if input.hold.contains(B::L | B::R) {
-            if self.hud.is_none() {
-                self.hud = Some(notifications::dynamic("").show().unwrap());
-                self.render();
-            }
+    pub fn show(&mut self) {
+        if self.hud.is_none() {
+            self.hud = Some(notifications::dynamic("").show().unwrap());
+            // self.render();
+        }
+    }
 
-            if self
-                .stack
-                .last()
-                .unwrap()
-                .clone()
-                .borrow_mut()
-                .control(input, &mut self.stack)
-            {
+    pub fn hide(&mut self) {
+        self.hud = None;
+    }
+
+    pub fn run(&mut self, input: State, combo: impl Into<FlagSet<wut::gamepad::Button>>) {
+        if input.hold.contains(combo.into()) {
+            self.show();
+
+            if self.control(input) {
                 self.render();
             }
         } else {
-            self.hud = None;
+            self.hide();
         }
     }
 }
+
+unsafe impl Send for Overlay {}
 
 // endregion
